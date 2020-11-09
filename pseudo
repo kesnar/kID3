@@ -1,0 +1,81 @@
+ID3 (Examples, Target_Attribute, Attributes) : Tree
+    //Create a root node for the tree
+    ret = new Tree;
+    
+    if all examples have a single Target_Attribute x:
+        return ret.makeLeaf(x)
+
+
+    if examples is 1D, meaning only target attribute collumn:
+        x = bestOfCollumn(Examples(Target_Attribute))
+        return ret.makeLeaf(x)
+
+    //else we will return ret.makeBranch() ???
+    else Begin
+        //A ← The Attribute that best classifies examples
+!!      A = bestIG(Examples, Attributes)
+        //Decision Tree attribute for Root = A.
+        branch = ret.makeBranch()
+        branch.setAttr(A)
+        //For each possible value, vi, of A,
+        for vi in examples(A).unique
+            //Add a new tree branch below Root, corresponding to the test A = vi.
+            kid = branch.createChild()
+            kid.setValue(vi)
+            //Let Examples(vi) be the subset of examples that have the value vi for A
+!!          subset = getexamples(examples, vi, A)
+            if subset is NOT empty {
+                //Else below this new branch add the subtree ID3 (subset, Target_Attribute, Attributes – {A})
+                kid.makeTree(ID3 (subset, Target_Attribute, Attributes – {A}))
+            }
+            else {
+                //Then below this new branch add a leaf node with value = most common target value in the examples
+                x = bestOfCollumn(subset(Target_Attribute))
+                kid.makeLeaf(x)
+                
+            }
+    End
+    //Return Root
+    return ret
+
+subset(examples, vi, A) -> Vec{
+    ret = new Vec;
+    for row in examples:
+        if row[A] = vi {
+            remove row[A];
+            ret.add(row);
+        }
+    return ret
+}
+
+
+Examples: 2d array with headers
+
+Tree: {
+    Node
+    Children[]: Either{Tree, Leaf}
+}
+
+
+checkexamples(Examples) : value
+
+bestIG(Examples) : attribute
+
+getexamples(Examples, Value, Attribute)
+
+
+enum Tree {
+    Leaf(TargetValue),
+    Branch {
+        label: Attribute, 
+        children: Vec<{
+            path: AttrValue,
+            tree: Tree
+            }>
+    }
+}
+
+
+type TargetValue = String
+type Attribute = String
+type AttrValue = String

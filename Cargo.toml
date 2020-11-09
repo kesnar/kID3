@@ -1,0 +1,10 @@
+[package]
+name = "id3"
+version = "0.1.0"
+authors = ["kesnar <kesnar@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+csv = "1.1.4"
+ndarray = "0.12.1"
+ndarray-csv = "0.4.1"
