@@ -1,5 +1,5 @@
 //id3 algorithm
-#[allow(warnings)]
+//#[allow(warnings)]
 
 extern crate csv;
 extern crate ndarray;
@@ -11,8 +11,9 @@ use std::error::Error;
 use std::ffi::OsString;
 use std::fs::File;
 use std::process;
+use rand::Rng;
 
-use ndarray::{Axis, stack, Array, Array2, ArrayView1};
+use ndarray::{Array2, ArrayView1};
 use ndarray_csv::Array2Reader;
 
 #[derive(Debug)]
@@ -31,16 +32,8 @@ struct Child {
 }
 
 type TargetValue = String;
-type Attribute = String;
+type Attribute = usize;
 type AttrValue = String;
-
-fn readcsv() -> Result<Array2<String>, Box<dyn Error>> {
-    let file_path = get_first_arg()?;
-    let file = File::open(file_path)?;
-    let mut reader = csv::ReaderBuilder::new().has_headers(false).from_reader(file);
-    let array_read: Array2<String> = reader.deserialize_array2_dynamic()?;
-    Ok(array_read)
-}
 
 fn get_first_arg() -> Result<OsString, Box<dyn Error>> {
     match env::args_os().nth(1) {
@@ -49,7 +42,15 @@ fn get_first_arg() -> Result<OsString, Box<dyn Error>> {
     }
 }
 
-fn checkSingleValue(arr: &ArrayView1<String>) -> (bool, String) {
+fn readcsv() -> Result<Array2<AttrValue>, Box<dyn Error>> {
+    let file_path = get_first_arg()?;
+    let file = File::open(file_path)?;
+    let mut reader = csv::ReaderBuilder::new().has_headers(false).from_reader(file);
+    let array_read: Array2<AttrValue> = reader.deserialize_array2_dynamic()?;
+    Ok(array_read)
+}
+
+fn checkSingleValue(arr: &ArrayView1<AttrValue>) -> (bool, String) {
     let value1 = &arr[0];
     for i in arr.iter() {
         if !value1.eq(i) {
@@ -59,24 +60,41 @@ fn checkSingleValue(arr: &ArrayView1<String>) -> (bool, String) {
     (true, value1.to_string())
 }
 
-fn bestIG(examples: &Array2<String>) -> usize {
-    1
+fn bestIG(examples: &Array2<AttrValue>) -> usize {
+    if examples.ncols() == 1 {
+        0
+    }else {
+        rand::thread_rng().gen_range(0, examples.ncols()-1)
+    }
 }
-fn get_subset(examples: Array2<String>, vi: String, A: usize) -> Array2<String> {
-    let ret = Array::from_vec(Vec::with_capacity(examples.ncols()));
+fn get_subset(examples: Array2<AttrValue>, vi: String, A: usize) -> Array2<AttrValue> {
+    let mut helper = vec![];
+    let mut i = 0;
     for row in examples.outer_iter() {
         if row[A] == vi {
-            stack(Axis(0), &[ret.view().clone(), row.view ().clone()]);
-            println!("{:?}", row);
+            i+=1;
+            let mut remove = 0;
+            for e in row.iter() {
+                if remove != A {
+                    helper.push(e.to_string());
+                }
+                remove += 1;
+            }
         }
-        
     }
-    ret
+
+    //UNSAFE! TO CHANGE!
+    if let Ok(ret) = Array2::from_shape_vec((i, examples.ncols()-1), helper) {
+        ret
+    }
+    else {
+        Array2::from(vec![[]])
+    }
 }
 
-fn ID3(examples: Array2<String>) -> Tree {
-    let (cond, value) = checkSingleValue(&examples.column(examples.ncols()-1));
+fn ID3(examples: Array2<AttrValue>, mut attributes: Vec<usize>) -> Tree {
     let mut ret;
+    let (cond, value) = checkSingleValue(&examples.column(examples.ncols()-1));
     if cond {
         ret = Tree::Leaf(value);
         return ret
@@ -89,13 +107,24 @@ fn ID3(examples: Array2<String>) -> Tree {
     */
 
     let best_attribute = bestIG(&examples);
+    for i in attributes.iter() {
+        println!("before {}", i)
+    }
+
+    attributes.retain(|&i| i != best_attribute);
+    for i in attributes.iter() {
+        println!("after {}", i)
+    }
+    //create values set
     let mut values = HashSet::<String>::new();
+    //populate values set
     examples.column(best_attribute).to_vec().retain(|e| values.insert(e.to_string()));
 
-    ret = Tree::Branch{ label: format!("A{}", best_attribute), children: Vec::new() };
+    ret = Tree::Branch{ label: best_attribute, children: Vec::new() };
     for i in values.iter() {
         if let Tree::Branch{ label: _, children: ref mut kids } = ret {
             let subset = get_subset(examples.to_owned(), i.to_string(), best_attribute);
+            //println!("{:?}", subset);
             if subset.is_empty() {
                 /*
                     if examples is 1D, meaning only target attribute collumn:
@@ -104,7 +133,7 @@ fn ID3(examples: Array2<String>) -> Tree {
                 */
             }
             else {
-                kids.push(Child{ path: i.to_string(), tree: ID3(subset)});
+                kids.push(Child{ path: i.to_string(), tree: ID3(subset, attributes.clone()) });
             }
         }
     }
@@ -119,10 +148,13 @@ fn main() {
             process::exit(1)
         }
         Ok(array) => {
-            //let x = ID3(array);
-            //println!("{:?}", x);
-            //let y = ID3(array);
-            let test = get_subset(array.to_owned(), "rain".to_string(), 1);
+            let mut attributes = Vec::<usize>::new();
+            for i in 0..array.ncols()-1 {
+                attributes.push(i);
+            }
+            let x = ID3(array, attributes);
+            println!("{:#?}", x);
+            //let test = get_subset(array.to_owned(), "rain".to_string(), 1);
             //println!("{:?} {:?}", array, test)
         }
     }
