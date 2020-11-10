@@ -50,7 +50,7 @@ fn readcsv() -> Result<Array2<AttrValue>, Box<dyn Error>> {
     Ok(array_read)
 }
 
-fn check_single_value(arr: &ArrayView1<AttrValue>) -> (bool, String) {
+fn checkSingleValue(arr: &ArrayView1<AttrValue>) -> (bool, String) {
     let value1 = &arr[0];
     for i in arr.iter() {
         if !value1.eq(i) {
@@ -60,49 +60,22 @@ fn check_single_value(arr: &ArrayView1<AttrValue>) -> (bool, String) {
     (true, value1.to_string())
 }
 
-/*
-//random
-fn best_attribute(examples: &Array2<AttrValue>) -> usize {
+fn bestIG(examples: &Array2<AttrValue>) -> usize {
     if examples.ncols() == 1 {
         0
     }else {
         rand::thread_rng().gen_range(0, examples.ncols()-1)
     }
-}*/
-
-fn entropy(array: ArrayView1<AttrValue>) -> f64 {
-    let mut values = HashSet::<String>::new();
-    array.to_vec().retain(|e| values.insert(e.to_string()));
-    
-    let mut count= Vec::<f64>::new();
-    for i in values.iter() {
-        count.push(array.iter().filter(|&n| *n == i.to_string()).count() as f64)
-    }
-    println!("{:?}", count);
-
-    let mut ret = 0.0;
-    let total = array.len() as f64;
-    for i in count {
-        ret -= i / total * (i/total).log2();
-    }
-    println!("{:?}", ret);
-    ret
 }
-
-fn best_attribute(examples: &Array2<AttrValue>) -> usize {    
-    let target_S = entropy(examples.column(examples.ncols()-1));
-    0
-}
-
-fn get_subset(examples: Array2<AttrValue>, vi: String, a: usize) -> Array2<AttrValue> {
+fn get_subset(examples: Array2<AttrValue>, vi: String, A: usize) -> Array2<AttrValue> {
     let mut helper = vec![];
     let mut i = 0;
     for row in examples.outer_iter() {
-        if row[a] == vi {
+        if row[A] == vi {
             i+=1;
             let mut remove = 0;
             for e in row.iter() {
-                if remove != a {
+                if remove != A {
                     helper.push(e.to_string());
                 }
                 remove += 1;
@@ -119,9 +92,9 @@ fn get_subset(examples: Array2<AttrValue>, vi: String, a: usize) -> Array2<AttrV
     }
 }
 
-fn id3(examples: Array2<AttrValue>, mut attributes: Vec<usize>) -> Tree {
+fn ID3(examples: Array2<AttrValue>, mut attributes: Vec<usize>) -> Tree {
     let mut ret;
-    let (cond, value) = check_single_value(&examples.column(examples.ncols()-1));
+    let (cond, value) = checkSingleValue(&examples.column(examples.ncols()-1));
     if cond {
         ret = Tree::Leaf(value);
         return ret
@@ -136,7 +109,7 @@ fn id3(examples: Array2<AttrValue>, mut attributes: Vec<usize>) -> Tree {
         return Tree::Leaf("WHAT?".to_string())
     }*/
 
-    let best = best_attribute(&examples);
+    let best_attribute = bestIG(&examples);
     /*for i in attributes.iter() {
         println!("before {}", i)
     }*/
@@ -145,18 +118,18 @@ fn id3(examples: Array2<AttrValue>, mut attributes: Vec<usize>) -> Tree {
     //create values set
     let mut values = HashSet::<String>::new();
     //populate values set
-    examples.column(best).to_vec().retain(|e| values.insert(e.to_string()));
+    examples.column(best_attribute).to_vec().retain(|e| values.insert(e.to_string()));
 
-    ret = Tree::Branch{ label: attributes[best], children: Vec::new() };
+    ret = Tree::Branch{ label: attributes[best_attribute], children: Vec::new() };
     
-    attributes.remove(best);
+    attributes.remove(best_attribute);
     /*for i in attributes.iter() {
         println!("after {}", i)
     }*/
 
     for i in values.iter() {
         if let Tree::Branch{ label: _, children: ref mut kids } = ret {
-            let subset = get_subset(examples.to_owned(), i.to_string(), best);
+            let subset = get_subset(examples.to_owned(), i.to_string(), best_attribute);
             //println!("{:?}", subset);
             if subset.is_empty() {
                 /*
@@ -166,7 +139,7 @@ fn id3(examples: Array2<AttrValue>, mut attributes: Vec<usize>) -> Tree {
                 */
             }
             else {
-                kids.push(Child{ path: i.to_string(), tree: id3(subset, attributes.clone()) });
+                kids.push(Child{ path: i.to_string(), tree: ID3(subset, attributes.clone()) });
             }
         }
     }
@@ -185,8 +158,8 @@ fn main() {
             for i in 0..array.ncols()-1 {
                 attributes.push(i);
             }
-            let x = id3(array, attributes);
-            //println!("{:#?}", x);
+            let x = ID3(array, attributes);
+            println!("{:#?}", x);
             //let test = get_subset(array.to_owned(), "rain".to_string(), 1);
             //println!("{:?} {:?}", array, test)
         }
