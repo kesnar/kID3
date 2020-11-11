@@ -13,7 +13,7 @@ use std::fs::File;
 use std::process;
 use rand::Rng;
 
-use ndarray::{Array2, ArrayView1};
+use ndarray::{ArrayBase, Array2, ArrayView1, Axis};
 use ndarray_csv::Array2Reader;
 
 #[derive(Debug)]
@@ -60,37 +60,104 @@ fn check_single_value(arr: &ArrayView1<AttrValue>) -> (bool, String) {
     (true, value1.to_string())
 }
 
-/*
+
 //random
-fn best_attribute(examples: &Array2<AttrValue>) -> usize {
+fn random_attribute(examples: &Array2<AttrValue>) -> usize {
     if examples.ncols() == 1 {
         0
     }else {
         rand::thread_rng().gen_range(0, examples.ncols()-1)
     }
-}*/
+}
 
 fn entropy(array: ArrayView1<AttrValue>) -> f64 {
     let mut values = HashSet::<String>::new();
-    array.to_vec().retain(|e| values.insert(e.to_string()));
+    let mut a = array.to_vec();
+    a.retain(|e| values.insert(e.to_string()));
+
+    let mut count= vec![0.0;a.len()];
+    for i in array.iter() {
+        for j in 0..a.len() {
+            if i.to_string() == a[j] {
+                count[j]+=1.0;
+                break;
+            }
+        }
+    }
     
-    let mut count= Vec::<f64>::new();
+    /*
+    //UNOPTIMIZED
     for i in values.iter() {
         count.push(array.iter().filter(|&n| *n == i.to_string()).count() as f64)
     }
-    println!("{:?}", count);
+    */
 
+    println!("{:?}", count);
     let mut ret = 0.0;
     let total = array.len() as f64;
     for i in count {
         ret -= i / total * (i/total).log2();
     }
-    println!("{:?}", ret);
+    //println!("{:?}", ret);
     ret
 }
 
 fn best_attribute(examples: &Array2<AttrValue>) -> usize {    
-    let target_S = entropy(examples.column(examples.ncols()-1));
+    let target_col = examples.column(examples.ncols()-1);
+    let target_S = entropy(target_col);
+
+    let nrows = examples.nrows() as f64;
+    let ncols = examples.ncols();
+    
+    let mut x = 0;
+    let mut inf_gain = vec![0.0; ncols-1];
+    for col in examples.axis_iter(Axis(1)) {
+        if x == ncols -1 {
+            break
+        }
+
+        let mut values = HashSet::<String>::new();
+        let mut a = col.to_vec();
+        a.retain(|e| values.insert(e.to_string()));
+        let mut subsets = vec![Vec::<String>::new();a.len()];
+        for i in 0..col.len() {
+            for j in 0..a.len() {
+                //Notice!
+                // index i is common on col and target_col
+                // index j is common on a and subsets
+
+                if col[i] == a[j] {
+                    subsets[j]. push(target_col[i].clone());
+                    break;
+                }
+            }
+        }
+
+        inf_gain[x] = target_S;
+        for subset in subsets.iter() {
+            inf_gain[x] -= subset.len() as f64 / nrows * entropy(ArrayBase::from(subset));
+        }
+        println!("{:?} {:?}", inf_gain[x], col);
+        x+=1;
+    }
+/*
+    for i in 0..target-1 {
+        for row in examples.outer_iter() {
+            let mut values = HashSet::<String>::new();
+            let mut a = array.to_vec();
+            a.retain(|e| values.insert(e.to_string()));
+
+            let mut count= vec![0.0;a.len()];
+            for i in array.iter() {
+                for j in 0..a.len() {
+                    if i.to_string() == a[j] {
+                        count[j]+=1.0;
+                        break;
+                    }
+                }
+            }
+        }
+    }*/
     0
 }
 
