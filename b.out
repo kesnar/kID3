@@ -38,6 +38,12 @@ Branch {
                             label: 1,
                             children: [
                                 Child {
+                                    path: "cool",
+                                    tree: Leaf(
+                                        "no",
+                                    ),
+                                },
+                                Child {
                                     path: "mild",
                                     tree: Branch {
                                         label: 2,
@@ -56,12 +62,6 @@ Branch {
                                             },
                                         ],
                                     },
-                                },
-                                Child {
-                                    path: "cool",
-                                    tree: Leaf(
-                                        "no",
-                                    ),
                                 },
                             ],
                         },
