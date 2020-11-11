@@ -1,2 +1,7 @@
 /target
 **/*.rs.bk
+
+*.out
+*.csv
+
+/src/*old*
