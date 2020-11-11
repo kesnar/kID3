@@ -1,5 +1,5 @@
 /// kesnar-ID3 (kID3) is a simple implementation of the ID3 algorithm in Rust with 3 options for selecting best attribute (random, information gain, gain ratio)
-/// made by kesnar (Panagiotis Famelis) in November 2020
+/// Written by kesnar (Panagiotis Famelis) in November 2020
 /// Published under CC BY-NC-SA 4.0 (Attribution-NonCommercial-ShareAlike 4.0 International)
 
 extern crate csv;
