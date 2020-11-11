@@ -11,6 +11,8 @@ use std::error::Error;
 use std::ffi::OsString;
 use std::fs::File;
 use std::process;
+use std::fs;
+
 use rand::Rng;
 
 use ndarray::{ArrayBase, Array2, ArrayView1, Axis};
@@ -92,7 +94,7 @@ fn entropy(array: ArrayView1<AttrValue>) -> f64 {
     }
     */
 
-    println!("{:?}", count);
+    //println!("{:?}", count);
     let mut ret = 0.0;
     let total = array.len() as f64;
     for i in count {
@@ -102,7 +104,8 @@ fn entropy(array: ArrayView1<AttrValue>) -> f64 {
     ret
 }
 
-fn best_attribute(examples: &Array2<AttrValue>) -> usize {    
+//information gain
+fn information_gain(examples: &Array2<AttrValue>) -> usize {    
     let target_col = examples.column(examples.ncols()-1);
     let target_S = entropy(target_col);
 
@@ -110,7 +113,8 @@ fn best_attribute(examples: &Array2<AttrValue>) -> usize {
     let ncols = examples.ncols();
     
     let mut x = 0;
-    let mut inf_gain = vec![0.0; ncols-1];
+    let mut max_gain = 0.0;
+    let mut ret = 0;
     for col in examples.axis_iter(Axis(1)) {
         if x == ncols -1 {
             break
@@ -133,33 +137,71 @@ fn best_attribute(examples: &Array2<AttrValue>) -> usize {
             }
         }
 
-        inf_gain[x] = target_S;
+        let mut inf_gain = target_S;
+        let mut split_inf = 0.0;
         for subset in subsets.iter() {
-            inf_gain[x] -= subset.len() as f64 / nrows * entropy(ArrayBase::from(subset));
+            inf_gain -= subset.len() as f64 / nrows * entropy(ArrayBase::from(subset));
+            split_inf -= subset.len() as f64 / nrows * (subset.len() as f64 / nrows).log2();
         }
-        println!("{:?} {:?}", inf_gain[x], col);
+        let gain_ratio = inf_gain / split_inf;
+
+        if gain_ratio > max_gain {
+            max_gain = gain_ratio;
+            ret = x;
+        }
+        //println!("{:?} {:?}", inf_gain, ret);
         x+=1;
     }
-/*
-    for i in 0..target-1 {
-        for row in examples.outer_iter() {
-            let mut values = HashSet::<String>::new();
-            let mut a = array.to_vec();
-            a.retain(|e| values.insert(e.to_string()));
+    ret
+}
+//gain ratio
+fn best_attribute(examples: &Array2<AttrValue>) -> usize {    
+    let target_col = examples.column(examples.ncols()-1);
+    let target_S = entropy(target_col);
 
-            let mut count= vec![0.0;a.len()];
-            for i in array.iter() {
-                for j in 0..a.len() {
-                    if i.to_string() == a[j] {
-                        count[j]+=1.0;
-                        break;
-                    }
+    let nrows = examples.nrows() as f64;
+    let ncols = examples.ncols();
+    
+    let mut x = 0;
+    let mut max_gain = 0.0;
+    let mut ret = 0;
+    for col in examples.axis_iter(Axis(1)) {
+        if x == ncols -1 {
+            break
+        }
+
+        let mut values = HashSet::<String>::new();
+        let mut a = col.to_vec();
+        a.retain(|e| values.insert(e.to_string()));
+        let mut subsets = vec![Vec::<String>::new();a.len()];
+        for i in 0..col.len() {
+            for j in 0..a.len() {
+                //Notice!
+                // index i is common on col and target_col
+                // index j is common on a and subsets
+
+                if col[i] == a[j] {
+                    subsets[j]. push(target_col[i].clone());
+                    break;
                 }
             }
         }
-    }*/
-    0
+
+        let mut inf_gain = target_S;
+
+        for subset in subsets.iter() {
+            inf_gain -= subset.len() as f64 / nrows * entropy(ArrayBase::from(subset));
+        }
+        if inf_gain > max_gain {
+            max_gain = inf_gain;
+            ret = x;
+        }
+        //println!("{:?} {:?}", inf_gain, ret);
+        x+=1;
+    }
+    ret
 }
+
 
 fn get_subset(examples: Array2<AttrValue>, vi: String, a: usize) -> Array2<AttrValue> {
     let mut helper = vec![];
@@ -252,11 +294,11 @@ fn main() {
             for i in 0..array.ncols()-1 {
                 attributes.push(i);
             }
-            let x = id3(array, attributes);
+            let tree = id3(array, attributes);
+            fs::write("./tree", format!("{:#?}",tree)).expect("Unable to write file");
             //println!("{:#?}", x);
             //let test = get_subset(array.to_owned(), "rain".to_string(), 1);
             //println!("{:?} {:?}", array, test)
         }
     }
 }
-

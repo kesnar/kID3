@@ -1,0 +1,79 @@
+Branch {
+    label: 0,
+    children: [
+        Child {
+            path: "sunny",
+            tree: Branch {
+                label: 2,
+                children: [
+                    Child {
+                        path: "normal",
+                        tree: Leaf(
+                            "yes",
+                        ),
+                    },
+                    Child {
+                        path: "high",
+                        tree: Leaf(
+                            "no",
+                        ),
+                    },
+                ],
+            },
+        },
+        Child {
+            path: "overcast",
+            tree: Leaf(
+                "yes",
+            ),
+        },
+        Child {
+            path: "rain",
+            tree: Branch {
+                label: 3,
+                children: [
+                    Child {
+                        path: "strong",
+                        tree: Branch {
+                            label: 1,
+                            children: [
+                                Child {
+                                    path: "cool",
+                                    tree: Leaf(
+                                        "no",
+                                    ),
+                                },
+                                Child {
+                                    path: "mild",
+                                    tree: Branch {
+                                        label: 2,
+                                        children: [
+                                            Child {
+                                                path: "high",
+                                                tree: Leaf(
+                                                    "no",
+                                                ),
+                                            },
+                                            Child {
+                                                path: "normal",
+                                                tree: Leaf(
+                                                    "yes",
+                                                ),
+                                            },
+                                        ],
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                    Child {
+                        path: "weak",
+                        tree: Leaf(
+                            "yes",
+                        ),
+                    },
+                ],
+            },
+        },
+    ],
+}
