@@ -52,11 +52,11 @@ impl Tree {
     fn test(&self, row: ArrayView1<AttrValue>) -> bool {
         match self {
             Tree::Leaf(val) => if row[row.len()-1] == val.to_string() {true} else {false},
-            Tree::Branch{label: label, children: children} => {
+            Tree::Branch{label, children} => {
                 let val = &row[*label];
                 let mut ret = false;
                 // find val in children and test the subtree
-                for Child{path: path, tree: tree} in children.iter() {
+                for Child{path, tree} in children.iter() {
                     if path == val {
                         ret = tree.test(row);
                         break;
@@ -300,7 +300,7 @@ fn id3(examples: Array2<AttrValue>, mut attributes: Vec<usize>, selection: i32) 
 }
 
 /// Function to split a 2D array in two.
-fn split(examples: Array2<AttrValue>, cut: i32) -> (Array2<AttrValue>, Array2<AttrValue>) {
+fn split(examples: Array2<AttrValue>, cut: usize) -> (Array2<AttrValue>, Array2<AttrValue>) {
 
     (examples.slice_axis(Axis(0), Slice::from(0..cut)).to_owned(), examples.slice_axis(Axis(0), Slice::from(cut+1..)).to_owned())
 }
@@ -338,12 +338,17 @@ fn main() {
                 for i in 0..array.ncols()-1 {
                     attributes.push(i);
                 }
-
-                let (validation, examples) = split(array, args[4].parse::<i32>().expect("not valid cut"));
-                let tree = id3(examples, attributes, args[3].parse::<i32>().expect("not valid attribute selection"));
-                let accuracy = validate(&tree, validation);
-
-                fs::write(format!("./{}",args[2]), format!("{:#?}\n\naccuracy: {}",tree, accuracy)).expect("Unable to write file");
+                
+                let nrows = array.nrows();
+                if args[4].parse::<i32>().expect("not valid attribute selection") == 0 {
+                    let (validation, examples) = split(array, 1 + rand::thread_rng().gen_range(0, nrows/2));
+                    let tree = id3(examples, attributes, args[3].parse::<i32>().expect("not valid attribute selection"));
+                    let accuracy = validate(&tree, validation);    
+                    fs::write(format!("./{}",args[2]), format!("{:#?}\n\naccuracy: {}",tree, accuracy)).expect("Unable to write file");
+                } else {
+                    let tree = id3(array, attributes, args[3].parse::<i32>().expect("not valid attribute selection"));
+                    fs::write(format!("./{}",args[2]), format!("{:#?}",tree)).expect("Unable to write file");
+                }
             }
         }
     } else {
