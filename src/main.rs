@@ -310,12 +310,16 @@ fn splitk(examples: Array2<AttrValue>, k: usize) -> Vec<Array2<AttrValue>> {
 
     let nrows = examples.nrows();
     let s = nrows / k;
+    let smod = nrows % k;
 
     for i in 0..k {
-        if i == k-1 {
+        /*if i == k-1 {
             ret.push(examples.slice_axis(Axis(0), Slice::from(i*s..)).to_owned());
-            break
-        } else {
+        }*/
+        if i < smod {
+            ret.push(examples.slice_axis(Axis(0), Slice::from(i*(s+1)..((i+1)*(s+1)))).to_owned());
+        }
+        else {
             ret.push(examples.slice_axis(Axis(0), Slice::from(i*s..((i+1)*s))).to_owned());
         }
     }
