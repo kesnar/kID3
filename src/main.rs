@@ -15,7 +15,7 @@ use std::fs;
 
 use rand::Rng;
 
-use ndarray::{ArrayBase, Array2, ArrayView1, Axis};
+use ndarray::{ArrayBase, Array2, ArrayView1, Axis, Slice};
 use ndarray_csv::Array2Reader;
 
 /// The Tree type is an enumeration type with two possible values, Leaf and Branch.
@@ -41,13 +41,34 @@ struct Child {
     tree: Tree
 }
 
-type TargetValue = String;
-type AttrValue = String;
 /// Attribute is of type usize. kID3 does not take the attributes' names as input, so it uses a 
 /// usize for denoting the various attributes, corresponding to the corresponding column number.
 type Attribute = usize;
+type TargetValue = String;
+type AttrValue = String;
 
-// Function to read the csv file and save the data read to an ndarray::Array2.
+impl Tree {
+    /// Function to test an example on a tree
+    fn test(&self, row: ArrayView1<AttrValue>) -> bool {
+        match self {
+            Tree::Leaf(val) => if row[row.len()-1] == val.to_string() {true} else {false},
+            Tree::Branch{label: label, children: children} => {
+                let val = &row[*label];
+                let mut ret = false;
+                // find val in children and test the subtree
+                for Child{path: path, tree: tree} in children.iter() {
+                    if path == val {
+                        ret = tree.test(row);
+                        break;
+                    }
+                }
+                ret
+            }
+        }
+    }
+}
+
+/// Function to read the csv file and save the data read to an ndarray::Array2.
 fn readcsv(file_path: String) -> Result<Array2<AttrValue>, Box<dyn Error>> {
     let file = File::open(file_path)?;
     let mut reader = csv::ReaderBuilder::new().has_headers(false).from_reader(file);
@@ -278,13 +299,33 @@ fn id3(examples: Array2<AttrValue>, mut attributes: Vec<usize>, selection: i32) 
     ret
 }
 
+/// Function to split a 2D array in two.
+fn split(examples: Array2<AttrValue>, cut: i32) -> (Array2<AttrValue>, Array2<AttrValue>) {
+
+    (examples.slice_axis(Axis(0), Slice::from(0..cut)).to_owned(), examples.slice_axis(Axis(0), Slice::from(cut+1..)).to_owned())
+}
+
+
+/// Function to validate a tree with a set of examples. Returns the accuracy.
+fn validate(tree: &Tree, validation: Array2<AttrValue>) -> f64 {
+
+    let mut pass = 0.0;
+    for row in validation.outer_iter() {
+        if tree.test(row) {
+            pass+=1.0;
+        }
+    }
+    pass / validation.nrows() as f64
+}
+
+
 fn main() {
     
     // Collect arguments
     let args: Vec<String> = env::args().collect();
     
     // Check that the number of arguments are correct
-    if args.len() == 4 {
+    if args.len() == 5 {
         match readcsv(args[1].to_string()) {
             Err(e) => {
                 // In case there is an error in the data file reading.
@@ -297,8 +338,12 @@ fn main() {
                 for i in 0..array.ncols()-1 {
                     attributes.push(i);
                 }
-                let tree = id3(array, attributes, args[3].parse::<i32>().expect("not valid attribute selection"));
-                fs::write(format!("./{}",args[2]), format!("{:#?}",tree)).expect("Unable to write file");
+
+                let (validation, examples) = split(array, args[4].parse::<i32>().expect("not valid cut"));
+                let tree = id3(examples, attributes, args[3].parse::<i32>().expect("not valid attribute selection"));
+                let accuracy = validate(&tree, validation);
+
+                fs::write(format!("./{}",args[2]), format!("{:#?}\n\naccuracy: {}",tree, accuracy)).expect("Unable to write file");
             }
         }
     } else {
