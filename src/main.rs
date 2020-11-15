@@ -300,7 +300,7 @@ fn id3(examples: Array2<AttrValue>, mut attributes: Vec<usize>, selection: i32) 
 }
 
 /// Function to split a 2D array in two.
-fn split(examples: Array2<AttrValue>, cut: usize) -> (Array2<AttrValue>, Array2<AttrValue>) {
+fn split(examples: Array2<AttrValue>, cut: i32) -> (Array2<AttrValue>, Array2<AttrValue>) {
 
     (examples.slice_axis(Axis(0), Slice::from(0..cut)).to_owned(), examples.slice_axis(Axis(0), Slice::from(cut+1..)).to_owned())
 }
@@ -349,7 +349,7 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     
     // Check that the number of arguments are correct
-    if args.len() == 5 {
+    if args.len() == 6 {
         match readcsv(args[1].to_string()) {
             Err(e) => {
                 // In case there is an error in the data file reading.
@@ -370,17 +370,25 @@ fn main() {
                     process::exit(1)
                 }
 
-                let nrows = array.nrows();
-                let k = args[4].parse::<usize>().expect("not valid split selection");
-                if k == 0 {
+                let nrows = array.nrows() as i32;
+                let choice = args[4].parse::<String>().expect("not valid split selection");
+                if choice.eq("a") {
                     let tree = id3(array, attributes, attr_sel);
                     fs::write(format!("./{}",args[2]), format!("{:#?}",tree)).expect("Unable to write file");
-                } else if k == 1 {
-                    let (validation, examples) = split(array, 1 + rand::thread_rng().gen_range(0, nrows/2));
-                    let tree = id3(examples, attributes, attr_sel);
-                    let accuracy = validate(&tree, validation);    
-                    fs::write(format!("./{}",args[2]), format!("{:#?}\n\naccuracy: {}",tree, accuracy)).expect("Unable to write file");
-                } else {
+                } else if choice.eq("b") {
+                    let k = args[5].parse::<i32>().expect("not valid split selection") * nrows/100;
+                    println!("{}", k);
+                    if (k < nrows-1) && (k > 0) {
+                        let (validation, examples) = split(array, k);
+                        let tree = id3(examples, attributes, attr_sel);
+                        let accuracy = validate(&tree, validation);    
+                        fs::write(format!("./{}",args[2]), format!("{:#?}\n\naccuracy: {}",tree, accuracy)).expect("Unable to write file");
+                    } else {
+                        let tree = id3(array, attributes, attr_sel);
+                        fs::write(format!("./{}",args[2]), format!("{:#?}",tree)).expect("Unable to write file");
+                    }
+                } else if choice.eq("c") {
+                    let k = args[5].parse::<usize>().expect("not valid split selection");
                     let mut mean_acc = 0.0;
                     let partition = splitk(array, k);
                     let mut wstr = "".to_string();
@@ -395,7 +403,7 @@ fn main() {
                                 pmt.push(b.to_string());
                             }
                         }
-                        if let Ok(examples) = Array2::from_shape_vec((nrows - validation.nrows(), validation.ncols()), pmt) {
+                        if let Ok(examples) = Array2::from_shape_vec((nrows as usize - validation.nrows(), validation.ncols()), pmt) {
                             let tree = id3(examples.clone(), attributes.clone(), attr_sel);
                             let accuracy = validate(&tree, validation);
                             mean_acc +=accuracy;
@@ -405,6 +413,9 @@ fn main() {
 
                     println!("{}", mean_acc/k as f64);
                     fs::write(format!("./{}",args[2]), format!("{}{}", wstr, mean_acc/k as f64)).expect("Unable to write file")
+                }else {
+                    // Print message to inform the format of arguments.
+                    println!("arg1: data file\narg2: output file\narg3: method for attribute selection (1: random, 2: information gain, 3: gain ratio)\narg4: number of k for k-fold cross-validation (0: no validation, 1: random % holdout)");
                 }
             }
         }
