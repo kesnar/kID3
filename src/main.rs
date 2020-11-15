@@ -349,7 +349,7 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     
     // Check that the number of arguments are correct
-    if args.len() == 6 {
+    if (args.len() == 6) || (args.len() == 5) {
         match readcsv(args[1].to_string()) {
             Err(e) => {
                 // In case there is an error in the data file reading.
@@ -377,7 +377,6 @@ fn main() {
                     fs::write(format!("./{}",args[2]), format!("{:#?}",tree)).expect("Unable to write file");
                 } else if choice.eq("b") {
                     let k = args[5].parse::<i32>().expect("not valid split selection") * nrows/100;
-                    println!("{}", k);
                     if (k < nrows-1) && (k > 0) {
                         let (validation, examples) = split(array, k);
                         let tree = id3(examples, attributes, attr_sel);
@@ -410,17 +409,15 @@ fn main() {
                             wstr = format!("{}{:#?}\n\naccuracy: {}\n\n-----------------------------\n\n", wstr, tree, accuracy);
                         }
                     }
-
-                    println!("{}", mean_acc/k as f64);
                     fs::write(format!("./{}",args[2]), format!("{}{}", wstr, mean_acc/k as f64)).expect("Unable to write file")
                 }else {
                     // Print message to inform the format of arguments.
-                    println!("arg1: data file\narg2: output file\narg3: method for attribute selection (1: random, 2: information gain, 3: gain ratio)\narg4: number of k for k-fold cross-validation (0: no validation, 1: random % holdout)");
+                    println!("arg1: data file\narg2: output file\narg3: method for attribute selection (1: random, 2: information gain, 3: gain ratio)\narg4: select validation type (a: no validation, b: percent holdout, c: k-fold cross validation)\narg5: percentage for holdout or number of k for k-fold cross-validation depending on arg4");
                 }
             }
         }
     } else {
         // Print message to inform the format of arguments.
-        println!("arg1: data file\narg2: output file\narg3: method for attribute selection (1: random, 2: information gain, 3: gain ratio)\narg4: number of k for k-fold cross-validation (0: no validation, 1: random % holdout)");
+        println!("arg1: data file\narg2: output file\narg3: method for attribute selection (1: random, 2: information gain, 3: gain ratio)\narg4: select validation type (a: no validation, b: percent holdout, c: k-fold cross validation)\narg5: percentage for holdout or number of k for k-fold cross-validation depending on arg4");
     }
 }
